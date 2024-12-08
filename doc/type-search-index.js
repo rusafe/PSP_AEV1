@@ -1,0 +1,1 @@
+typeSearchIndex = [{"l":"All Classes and Interfaces","u":"allclasses-index.html"},{"p":"main","l":"Simulador.CalcType"},{"p":"main","l":"SimulacioMP"},{"p":"main","l":"SimulacioMT"},{"p":"main","l":"Simulador"}];updateSearchResults();

@@ -21,9 +21,17 @@ import javax.swing.JButton;
 import javax.swing.JSpinner;
 
 public class Simulador extends JFrame {
-
+	/**
+	 * Enum con los tipos de calculos (multiproceso, multihilo)
+	 */
 	public static enum CalcType {multiprocess, multithread}
+	/**
+	 * Array que relaciona los tipos de calculos del enum con su string
+	 */
 	public static final String[] CALC_TYPE_STRING = new String[] {"MP", "MT"};
+	/**
+	 * Donde se guardan los ficheros de las proteinas
+	 */
 	private static final String PROTEIN_STORAGE_DIRECTORY = "resources/proteins";
 	
 	private static final long serialVersionUID = 1L;
@@ -36,6 +44,10 @@ public class Simulador extends JFrame {
 	private JLabel lblMultiprocess;
 	private JLabel lblMultithread;
 
+	/**
+	 * Metodo principal de la aplicacion
+	 * @param args Argumentos
+	 */
 	public static void main(String[] args) {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
@@ -49,18 +61,31 @@ public class Simulador extends JFrame {
 		});
 	}
 
+	/**
+	 * Constructor que inicializa la interfaz y los manejadores de eventos
+	 */
 	public Simulador() {
 		setTitle("AlphaFold");
 		initComponents();
 		initEventHandlers();
 	}
 	
+	/**
+	 * Metodo que crea un fichero en base a los datos de la proteina
+	 * @param calcType Si es multiproceso o multihilo
+	 * @param proteinType Tipo de la proteina
+	 * @param order Orden en la lista de calculos
+	 * @param start Cuando se empieza a calcular
+	 * @param finish Cuando se termina de calcular
+	 * @param result El resultado del calculo
+	 */
 	public static void createProteinFile(CalcType calcType, int proteinType, int order, long start, long finish, double result) {		
-		String calcTime = String.format("%.2f", (finish - start) / 1000f).replace('.', '_');
+		String calcTime = String.format("%.2f", (finish - start) / 1000f).replace(',', '_');
 		String startDate = formatMilliToDate(start);
 		String finishDate = formatMilliToDate(finish);
 		
-		String fileName = String.format("PROT_%s_%d_n%d_%s.sim", CALC_TYPE_STRING[calcType.ordinal()], proteinType, order, startDate);
+		String fileName = String.format("PROT_%s_%d_n%d_%s", CALC_TYPE_STRING[calcType.ordinal()], proteinType, order, startDate);
+		fileName = String.format("%s.sim", fileName.substring(0, fileName.length() - 1));
 		try (BufferedWriter bw = new BufferedWriter(new FileWriter(String.format("%s/%s", PROTEIN_STORAGE_DIRECTORY, fileName)))){
 			bw.write(startDate);
 			bw.newLine();
@@ -74,11 +99,19 @@ public class Simulador extends JFrame {
 		}
 	}
 	
+	/**
+	 * Metodo que crea una fecha con el formato especifico en base a los milisegundos introducidos
+	 * @param millisecondsFromEpoch Los milisegundos de los que sacar la fecha
+	 * @return La fecha con el formato adecuado
+	 */
 	public static String formatMilliToDate(long millisecondsFromEpoch) {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_HHmmss_SS");
 		return dateFormat.format(millisecondsFromEpoch);
 	}
 	
+	/**
+	 * Metodo que prepara el directorio donde se van a almacenar los ficheros con los datos de las proteinas
+	 */
 	private static void prepareProteinStorageDirectory() {
 		File storageDirectory = new File(PROTEIN_STORAGE_DIRECTORY);
 		if(!storageDirectory.exists())
@@ -90,7 +123,13 @@ public class Simulador extends JFrame {
 		}
 	}
 	
-	private void executeMp(int type, int calcOrder) {
+	/**
+	 * Metodo que ejecuta un proceso paralelo con la simulacion de una proteina
+	 * @param type Tipo de la proteina
+	 * @param calcOrder Orden en la lista de procesos
+	 * @return El proceso que se crea
+	 */
+	private Process executeMp(int type, int calcOrder) {
 		try {
 			String className = "main.SimulacioMP";
 			String javaHome = System.getProperty("java.home");
@@ -106,34 +145,32 @@ public class Simulador extends JFrame {
 			command.add(String.valueOf(calcOrder));
 			
 			ProcessBuilder builder = new ProcessBuilder(command);
-			builder.start();
+			Process process = builder.start();
+			return process;
 		} catch (Exception e) {
 			e.printStackTrace();
+			return null;
 		}
 	}
 	
-	private void waitForFilesToBeCreated(File directory, int expectedFileCount) {
-		while(directory.listFiles().length != expectedFileCount) {}
-	}
-	
-	private void waitForFilesToHaveContent(File[] files) {
-		boolean anyFileEmpty;
-		do {
-			anyFileEmpty = false;
-			for(File file : files) {
-				try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-					String line = br.readLine();
-					if(line == null) {
-						anyFileEmpty = true;
-						break;
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
+	/**
+	 * Metodo que espera a que todos los procesos terminen de ejecutarse
+	 * @param processes Array con los procesos
+	 */
+	private void waitForProcessesToFinish(ArrayList<Process> processes) {
+		for(Process process : processes) {
+			try {
+				process.waitFor();
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
-		} while(anyFileEmpty);
+		}
 	}
 	
+	/**
+	 * Metodo que espera a que todos los hilos terminen de ejecutarse
+	 * @param threads Array con los hilos
+	 */
 	private void waitForThreadsToFinish(ArrayList<Thread> threads) {
 		for(Thread thread : threads) {
 			try {
@@ -144,6 +181,9 @@ public class Simulador extends JFrame {
 		}
 	}
 	
+	/**
+	 * Metodo que inicia los manejadores de eventos de los componentes visuales
+	 */
 	private void initEventHandlers() {
 		btnSimulate.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -153,17 +193,14 @@ public class Simulador extends JFrame {
 				
 				JSpinner[] proteinSpinners = new JSpinner[] { spnTypeOne, spnTypeTwo, spnTypeThree, spnTypeFour };
 				
-				int expectedFileCount = 0;
+				ArrayList<Process> processes = new ArrayList<Process>();
 				start = System.currentTimeMillis();
 				for(int i = 0; i < proteinSpinners.length; i++) {
 					for(int j = 1; j <= (int)proteinSpinners[i].getValue(); j++) {
-						executeMp(i + 1, j);
-						expectedFileCount++;
+						processes.add(executeMp(i + 1, j));
 					}
 				}
-				File proteinStorageDirectory = new File(PROTEIN_STORAGE_DIRECTORY);
-				waitForFilesToBeCreated(proteinStorageDirectory, expectedFileCount);
-				waitForFilesToHaveContent(proteinStorageDirectory.listFiles());
+				waitForProcessesToFinish(processes);
 				finish = System.currentTimeMillis();
 				double durationMp = (finish - start) / 1000f;
 				
@@ -188,6 +225,9 @@ public class Simulador extends JFrame {
 		});
 	}
 	
+	/**
+	 * Metodo que inicia los componentes visuales
+	 */
 	private void initComponents() {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 450, 399);
@@ -245,12 +285,12 @@ public class Simulador extends JFrame {
 		contentPane.add(lblTypeFour);
 		
 		lblMultiprocess = new JLabel("Multiproceso");
-		lblMultiprocess.setBounds(18, 300, 122, 14);
+		lblMultiprocess.setBounds(25, 300, 122, 14);
 		contentPane.add(lblMultiprocess);
 		lblMultiprocess.setVisible(false);
 		
 		lblMultithread = new JLabel("Multihilo");
-		lblMultithread.setBounds(304, 300, 122, 14);
+		lblMultithread.setBounds(276, 300, 122, 14);
 		contentPane.add(lblMultithread);
 		lblMultithread.setVisible(false);
 		
