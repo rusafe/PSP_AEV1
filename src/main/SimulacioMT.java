@@ -10,7 +10,11 @@ public class SimulacioMT implements Runnable {
 	}
 	
 	public void run() {
+		long start = System.currentTimeMillis();
+		double result = SimulacioMT.simulation(type);
+		long finish = System.currentTimeMillis();
 		
+		Simulador.createProteinFile(Simulador.CalcType.multithread, type, calcOrder, start, finish, result);
 	}
 	
 	public static double simulation(int type) {
