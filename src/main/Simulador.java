@@ -9,12 +9,20 @@ import javax.swing.JLabel;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.text.SimpleDateFormat;
 
 import javax.swing.JButton;
 import javax.swing.JSpinner;
 
 public class Simulador extends JFrame {
 
+	public static enum CalcType {multiprocess, multithread}
+	public static final String[] CALC_TYPE_STRING = new String[] {"MP", "MT"};
+	private static final String PROTEIN_STORAGE_DIRECTORY = "resources/proteins";
+	
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
 	private JButton btnSimulate;
@@ -40,6 +48,41 @@ public class Simulador extends JFrame {
 		setTitle("AlphaFold");
 		initComponents();
 		initEventHandlers();
+	}
+	
+	public static void createProteinFile(CalcType calcType, int proteinType, int order, long start, long finish, double result) {		
+		String calcTime = String.format("%.2f", (finish - start) / 1000f).replace('.', '_');
+		String startDate = formatMilliToDate(start);
+		String finishDate = formatMilliToDate(finish);
+		
+		String fileName = String.format("PROT_%s_%d_n%d_%s.sim", CALC_TYPE_STRING[calcType.ordinal()], proteinType, order, startDate);
+		try (BufferedWriter bw = new BufferedWriter(new FileWriter(String.format("%s/%s", PROTEIN_STORAGE_DIRECTORY, fileName)))){
+			bw.write(startDate);
+			bw.newLine();
+			bw.write(finishDate);
+			bw.newLine();
+			bw.write(calcTime);
+			bw.newLine();
+			bw.write(String.valueOf(result));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public static String formatMilliToDate(long millisecondsFromEpoch) {
+		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_HHmmss_SS");
+		return dateFormat.format(millisecondsFromEpoch);
+	}
+	
+	private static void prepareProteinStorageDirectory() {
+		File storageDirectory = new File(PROTEIN_STORAGE_DIRECTORY);
+		if(!storageDirectory.exists())
+			storageDirectory.mkdirs();
+		else {
+			for(File file : storageDirectory.listFiles()) {
+				file.delete();
+			}
+		}
 	}
 	
 	private void initComponents() {
@@ -104,7 +147,7 @@ public class Simulador extends JFrame {
 	private void initEventHandlers() {
 		btnSimulate.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				
+				prepareProteinStorageDirectory();
 			}
 		});
 	}

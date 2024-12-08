@@ -2,13 +2,15 @@ package main;
 
 public class SimulacioMT implements Runnable {
 	private int type;
+	private int calcOrder;
 	
-	public SimulacioMT(int type) {
+	public SimulacioMT(int type, int calcOrder) {
 		this.type = type;
+		this.calcOrder = calcOrder;
 	}
 	
 	public void run() {
-		simulation(type);
+		
 	}
 	
 	public static double simulation(int type) {
