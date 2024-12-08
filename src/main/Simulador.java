@@ -9,10 +9,13 @@ import javax.swing.JLabel;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 
 import javax.swing.JButton;
 import javax.swing.JSpinner;
@@ -30,6 +33,8 @@ public class Simulador extends JFrame {
 	private JSpinner spnTypeTwo;
 	private JSpinner spnTypeThree;
 	private JSpinner spnTypeFour;
+	private JLabel lblMultiprocess;
+	private JLabel lblMultithread;
 
 	public static void main(String[] args) {
 		EventQueue.invokeLater(new Runnable() {
@@ -85,6 +90,104 @@ public class Simulador extends JFrame {
 		}
 	}
 	
+	private void executeMp(int type, int calcOrder) {
+		try {
+			String className = "main.SimulacioMP";
+			String javaHome = System.getProperty("java.home");
+			String javaBin = javaHome + File.separator + "bin" + File.separator + "java";
+			String classpath = System.getProperty("java.class.path");
+			
+			ArrayList<String> command = new ArrayList<>();
+			command.add(javaBin);
+			command.add("-cp");
+			command.add(classpath);
+			command.add(className);
+			command.add(String.valueOf(type));
+			command.add(String.valueOf(calcOrder));
+			
+			ProcessBuilder builder = new ProcessBuilder(command);
+			builder.start();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void waitForFilesToBeCreated(File directory, int expectedFileCount) {
+		while(directory.listFiles().length != expectedFileCount) {}
+	}
+	
+	private void waitForFilesToHaveContent(File[] files) {
+		boolean anyFileEmpty;
+		do {
+			anyFileEmpty = false;
+			for(File file : files) {
+				try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+					String line = br.readLine();
+					if(line == null) {
+						anyFileEmpty = true;
+						break;
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		} while(anyFileEmpty);
+	}
+	
+	private void waitForThreadsToFinish(ArrayList<Thread> threads) {
+		for(Thread thread : threads) {
+			try {
+				thread.join();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	private void initEventHandlers() {
+		btnSimulate.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				prepareProteinStorageDirectory();
+				
+				long start, finish;
+				
+				JSpinner[] proteinSpinners = new JSpinner[] { spnTypeOne, spnTypeTwo, spnTypeThree, spnTypeFour };
+				
+				int expectedFileCount = 0;
+				start = System.currentTimeMillis();
+				for(int i = 0; i < proteinSpinners.length; i++) {
+					for(int j = 1; j <= (int)proteinSpinners[i].getValue(); j++) {
+						executeMp(i + 1, j);
+						expectedFileCount++;
+					}
+				}
+				File proteinStorageDirectory = new File(PROTEIN_STORAGE_DIRECTORY);
+				waitForFilesToBeCreated(proteinStorageDirectory, expectedFileCount);
+				waitForFilesToHaveContent(proteinStorageDirectory.listFiles());
+				finish = System.currentTimeMillis();
+				double durationMp = (finish - start) / 1000f;
+				
+				ArrayList<Thread> threads = new ArrayList<Thread>();
+				start = System.currentTimeMillis();
+				for(int i = 0; i < proteinSpinners.length; i++) {
+					for(int j = 1; j <= (int)proteinSpinners[i].getValue(); j++) {
+						Thread thread = new Thread(new SimulacioMT(i + 1, j));
+						thread.start();
+						threads.add(thread);
+					}
+				}
+				waitForThreadsToFinish(threads);
+				finish = System.currentTimeMillis();
+				double durationMt = (finish - start) / 1000f;
+				
+				lblMultiprocess.setText(String.format("Multiproces: %.2fs", durationMp));
+				lblMultithread.setText(String.format("Multifil: %.2fs", durationMt));
+				lblMultiprocess.setVisible(true);
+				lblMultithread.setVisible(true);
+			}
+		});
+	}
+	
 	private void initComponents() {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 450, 399);
@@ -110,19 +213,19 @@ public class Simulador extends JFrame {
 		contentPane.add(btnSimulate);
 		
 		spnTypeOne = new JSpinner();
-		spnTypeOne.setBounds(107, 143, 30, 20);
+		spnTypeOne.setBounds(100, 143, 42, 20);
 		contentPane.add(spnTypeOne);
 		
 		spnTypeTwo = new JSpinner();
-		spnTypeTwo.setBounds(271, 143, 30, 20);
+		spnTypeTwo.setBounds(263, 143, 46, 20);
 		contentPane.add(spnTypeTwo);
 		
 		spnTypeThree = new JSpinner();
-		spnTypeThree.setBounds(107, 214, 30, 20);
+		spnTypeThree.setBounds(100, 214, 42, 20);
 		contentPane.add(spnTypeThree);
 		
 		spnTypeFour = new JSpinner();
-		spnTypeFour.setBounds(271, 214, 30, 20);
+		spnTypeFour.setBounds(263, 214, 46, 20);
 		contentPane.add(spnTypeFour);
 		
 		JLabel lblTypeOne = new JLabel("Estructura Primaria");
@@ -141,14 +244,16 @@ public class Simulador extends JFrame {
 		lblTypeFour.setBounds(226, 189, 139, 14);
 		contentPane.add(lblTypeFour);
 		
+		lblMultiprocess = new JLabel("Multiproceso");
+		lblMultiprocess.setBounds(18, 300, 122, 14);
+		contentPane.add(lblMultiprocess);
+		lblMultiprocess.setVisible(false);
+		
+		lblMultithread = new JLabel("Multihilo");
+		lblMultithread.setBounds(304, 300, 122, 14);
+		contentPane.add(lblMultithread);
+		lblMultithread.setVisible(false);
+		
 		setVisible(true);		
-	}
-	
-	private void initEventHandlers() {
-		btnSimulate.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				prepareProteinStorageDirectory();
-			}
-		});
 	}
 }
