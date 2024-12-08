@@ -19,6 +19,7 @@ import java.util.ArrayList;
 
 import javax.swing.JButton;
 import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
 
 public class Simulador extends JFrame {
 	/**
@@ -253,18 +254,22 @@ public class Simulador extends JFrame {
 		contentPane.add(btnSimulate);
 		
 		spnTypeOne = new JSpinner();
+		spnTypeOne.setModel(new SpinnerNumberModel(Integer.valueOf(0), Integer.valueOf(0), null, Integer.valueOf(1)));
 		spnTypeOne.setBounds(100, 143, 42, 20);
 		contentPane.add(spnTypeOne);
 		
 		spnTypeTwo = new JSpinner();
+		spnTypeTwo.setModel(new SpinnerNumberModel(Integer.valueOf(0), Integer.valueOf(0), null, Integer.valueOf(1)));
 		spnTypeTwo.setBounds(263, 143, 46, 20);
 		contentPane.add(spnTypeTwo);
 		
 		spnTypeThree = new JSpinner();
+		spnTypeThree.setModel(new SpinnerNumberModel(Integer.valueOf(0), Integer.valueOf(0), null, Integer.valueOf(1)));
 		spnTypeThree.setBounds(100, 214, 42, 20);
 		contentPane.add(spnTypeThree);
 		
 		spnTypeFour = new JSpinner();
+		spnTypeFour.setModel(new SpinnerNumberModel(Integer.valueOf(0), Integer.valueOf(0), null, Integer.valueOf(1)));
 		spnTypeFour.setBounds(263, 214, 46, 20);
 		contentPane.add(spnTypeFour);
 		
